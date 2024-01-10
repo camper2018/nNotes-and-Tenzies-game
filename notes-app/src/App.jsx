@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from "./components/Sidebar"
 import Editor from "./components/Editor"
-// import { data } from "../data.js"
 import Split from "react-split"
 import { nanoid } from "nanoid"
 
@@ -14,7 +13,7 @@ function App() {
   const [currentNoteId, setCurrentNoteId] = useState(
     notes[0]?.id || ""
   )
-   
+  const currentNote = notes.find(note => note.id === currentNoteId) || notes[0];
   useEffect(()=> {
      localStorage.setItem("notes", JSON.stringify(notes))
   },[notes])
@@ -43,12 +42,6 @@ function App() {
     setNotes(updatedArray);
   }
 
-  function findCurrentNote() {
-    return notes.find(note => {
-      return note.id === currentNoteId
-    }) || notes[0]
-  }
-
   function deleteNote(event, noteId){
     event.stopPropagation();
     setNotes(oldNotes => oldNotes.filter(note => note.id !== noteId))
@@ -66,7 +59,7 @@ function App() {
           >
             <Sidebar
               notes={notes}
-              currentNote={findCurrentNote()}
+              currentNote={currentNote}
               setCurrentNoteId={setCurrentNoteId}
               newNote={createNewNote}
               deleteNote={deleteNote}
@@ -75,7 +68,7 @@ function App() {
               currentNoteId &&
               notes.length > 0 &&
               <Editor
-                currentNote={findCurrentNote()}
+                currentNote={currentNote}
                 updateNote={updateNote}
               />
             }
