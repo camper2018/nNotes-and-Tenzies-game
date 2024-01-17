@@ -3,48 +3,56 @@ import Sidebar from "./components/Sidebar"
 import Editor from "./components/Editor"
 import Split from "react-split"
 import { nanoid } from "nanoid"
-
-
+import { onSnapshot, addDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import {notesCollection, db }from '../firebase.js';
 function App() {
   // lazy state initialization by fetching state from local storage inside the function and passing that function as a useState value
   // It prevents fetching data from local storage on every component render
   // Rather, function will only be called when the state (notes) changes. 
   const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem("notes"))|| []);
-  const [currentNoteId, setCurrentNoteId] = useState(
-    notes[0]?.id || ""
-  )
+  const [currentNoteId, setCurrentNoteId] = useState("");
   const currentNote = notes.find(note => note.id === currentNoteId) || notes[0];
+  const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt );
   useEffect(()=> {
-     localStorage.setItem("notes", JSON.stringify(notes))
-  },[notes])
-
-  function createNewNote() {
-    const newNote = {
-      id: nanoid(),
-      body: "# Type your markdown note's title here"
+     // onSnapshot is an event listener provided by firebase that listens for any changes in the data in our database collection.
+    const unsubscribe = onSnapshot(notesCollection, (snapshot)=> {
+        // Sync up pur local notes array with the snapshot data
+        // by setting up this onSnapshot listener we are creating a web socket connection with our database
+        // so must give react  a way to unsubscribe from this listener whenever the component unmounts to avoid memory leak
+        const notesArr = snapshot.docs.map(doc =>({
+          ...doc.data(),
+          id: doc.id,
+         }))
+        setNotes(notesArr);
+     })
+     return unsubscribe;
+  },[])
+  
+  useEffect(() => {
+    if (!currentNoteId) {
+        setCurrentNoteId(notes[0]?.id)
     }
-    
-    setNotes(prevNotes => [newNote, ...prevNotes])
-    setCurrentNoteId(newNote.id)
+}, [notes])
+  async function createNewNote() {
+    const newNote = {
+      body: "# Type your markdown note's title here",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    const newNoteRef = await addDoc(notesCollection, newNote)
+    setCurrentNoteId(newNoteRef.id)
   }
 
   
   // Put the most recently-modified note at the top
-  function updateNote(text) {
-    const updatedArray = [];
-    notes.forEach(note => {
-      if (note.id === currentNoteId ){
-        updatedArray.unshift({...note, body: text})
-      } else {
-        updatedArray.push(note);
-      }
-    });
-    setNotes(updatedArray);
+  async function updateNote(text) {
+    const docRef = doc(db, "notes", currentNoteId)
+    await setDoc(docRef, {body: text, updatedAt: Date.now()}, {merge: true} )
   }
 
-  function deleteNote(event, noteId){
-    event.stopPropagation();
-    setNotes(oldNotes => oldNotes.filter(note => note.id !== noteId))
+  async function deleteNote(noteId){
+    const docRef = doc(db, "notes", noteId);
+    await deleteDoc(docRef);
   }
 
   return (
@@ -58,20 +66,17 @@ function App() {
             className="split"
           >
             <Sidebar
-              notes={notes}
+              notes={sortedNotes}
               currentNote={currentNote}
               setCurrentNoteId={setCurrentNoteId}
               newNote={createNewNote}
               deleteNote={deleteNote}
             />
-            {
-              currentNoteId &&
-              notes.length > 0 &&
               <Editor
                 currentNote={currentNote}
                 updateNote={updateNote}
               />
-            }
+            
           </Split>
           :
           <div className="no-notes">

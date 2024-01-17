@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import ReactMde from "react-mde"
+import ReactMde from "react-mde" // npm i react-mde --legacy-peer-deps
 import Showdown from "showdown"
 import 'react-mde/lib/styles/css/react-mde-all.css'
 
@@ -16,7 +16,7 @@ export default function Editor({ currentNote, updateNote }) {
     return (
         <section className="pane editor">
             <ReactMde
-                value={currentNote.body}
+                value={currentNote?.body}
                 onChange={updateNote}
                 selectedTab={selectedTab}
                 onTabChange={setSelectedTab}
